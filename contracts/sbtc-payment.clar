@@ -265,3 +265,29 @@
         (ok true)
     )
 )
+
+;; ==============================================
+;; Read-only Functions
+;; ==============================================
+
+(define-read-only (get-payment (payment-id uint))
+    (map-get? payments payment-id)
+)
+
+(define-read-only (get-merchant-info (merchant principal))
+    (map-get? merchants merchant)
+)
+
+(define-read-only (get-merchant-balance (merchant principal))
+    (default-to u0 (map-get? merchant-balances merchant))
+)
+
+(define-read-only (get-contract-info)
+    {
+        owner: CONTRACT_OWNER,
+        paused: (var-get contract-paused),
+        fee-percentage: (var-get fee-percentage),
+        min-payment: (var-get min-payment),
+        total-payments: (var-get payment-nonce)
+    }
+)
