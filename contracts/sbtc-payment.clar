@@ -127,3 +127,41 @@
         (ok true)
     ))
 )
+
+;; ==============================================
+;; Public Functions - Merchant Management
+;; ==============================================
+
+(define-public (register-merchant (withdrawal-address principal))
+    (begin
+        (asserts! (not (is-merchant tx-sender)) ERR_NOT_AUTHORIZED)
+        (map-set merchants
+            tx-sender
+            {
+                active: true,
+                total-volume: u0,
+                payment-count: u0,
+                withdrawal-address: (some withdrawal-address),
+                fee-override: none
+            }
+        )
+        (ok true)
+    )
+)
+
+(define-public (withdraw-balance (amount uint))
+    (let (
+        (merchant-data (unwrap! (map-get? merchants tx-sender) ERR_INVALID_MERCHANT))
+        (current-balance (default-to u0 (map-get? merchant-balances tx-sender)))
+        (withdrawal-addr (unwrap! (get withdrawal-address merchant-data) ERR_NOT_AUTHORIZED))
+    )
+    (begin
+        (asserts! (>= current-balance amount) ERR_INSUFFICIENT_BALANCE)
+        (try! (stx-transfer? amount tx-sender withdrawal-addr))
+        (map-set merchant-balances
+            tx-sender
+            (- current-balance amount)
+        )
+        (ok true)
+    ))
+)
