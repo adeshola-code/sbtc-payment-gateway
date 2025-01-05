@@ -67,3 +67,63 @@
 
 ;; Merchant Balances
 (define-map merchant-balances principal uint)
+
+;; ==============================================
+;; Private Functions
+;; ==============================================
+
+;; Authorization Checks
+(define-private (is-contract-owner)
+    (is-eq tx-sender CONTRACT_OWNER)
+)
+
+(define-private (is-merchant (merchant principal))
+    (default-to 
+        false
+        (get active (map-get? merchants merchant))
+    )
+)
+
+;; Fee Calculations
+(define-private (calculate-fee (amount uint) (merchant principal))
+    (let (
+        (merchant-data (unwrap! (map-get? merchants merchant) ERR_INVALID_MERCHANT))
+        (fee-rate (default-to (var-get fee-percentage) (get fee-override merchant-data)))
+    )
+    (/ (* amount fee-rate) u10000))
+)
+
+;; Payment Processing Logic
+(define-private (process-payment (payment-id uint) (payment-data {merchant: principal, amount: uint, customer: principal, status: (string-ascii 20), created-at: uint, processed-at: (optional uint), reference: (optional (string-ascii 64))}))
+    (let (
+        (fee (calculate-fee (get amount payment-data) (get merchant payment-data)))
+        (net-amount (- (get amount payment-data) fee))
+    )
+    (begin
+        ;; Update merchant balance
+        (map-set merchant-balances 
+            (get merchant payment-data)
+            (+ (default-to u0 (map-get? merchant-balances (get merchant payment-data))) net-amount)
+        )
+        ;; Update merchant stats
+        (map-set merchants
+            (get merchant payment-data)
+            (merge
+                (unwrap! (map-get? merchants (get merchant payment-data)) ERR_INVALID_MERCHANT)
+                {
+                    total-volume: (+ (get amount payment-data) (get total-volume (unwrap! (map-get? merchants (get merchant payment-data)) ERR_INVALID_MERCHANT))),
+                    payment-count: (+ u1 (get payment-count (unwrap! (map-get? merchants (get merchant payment-data)) ERR_INVALID_MERCHANT)))
+                }
+            )
+        )
+        ;; Update payment status
+        (map-set payments
+            payment-id
+            (merge payment-data {
+                status: "completed",
+                processed-at: (some block-height)
+            })
+        )
+        (ok true)
+    ))
+)
