@@ -165,3 +165,33 @@
         (ok true)
     ))
 )
+
+;; ==============================================
+;; Public Functions - Payment Operations
+;; ==============================================
+
+(define-public (create-payment (merchant principal) (amount uint) (reference (optional (string-ascii 64))))
+    (begin
+        (asserts! (>= amount (var-get min-payment)) ERR_INVALID_AMOUNT)
+        (asserts! (is-merchant merchant) ERR_INVALID_MERCHANT)
+        (let (
+            (payment-id (+ (var-get payment-nonce) u1))
+        )
+        (begin
+            (var-set payment-nonce payment-id)
+            (map-set payments
+                payment-id
+                {
+                    merchant: merchant,
+                    amount: amount,
+                    customer: tx-sender,
+                    status: "pending",
+                    created-at: block-height,
+                    processed-at: none,
+                    reference: reference
+                }
+            )
+            (ok payment-id)
+        ))
+    )
+)
