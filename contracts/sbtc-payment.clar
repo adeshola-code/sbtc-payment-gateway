@@ -20,3 +20,17 @@
 (define-constant ERR_PAYMENT_ALREADY_PROCESSED (err u104))
 (define-constant ERR_INSUFFICIENT_BALANCE (err u105))
 (define-constant ERR_INVALID_STATUS (err u106))
+
+;; ==============================================
+;; Data Variables
+;; ==============================================
+
+;; Contract State
+(define-data-var contract-paused bool false)
+
+;; Fee Configuration
+(define-data-var fee-percentage uint u100) ;; 1% = 100 basis points
+(define-data-var min-payment uint u1000000) ;; 0.01 sBTC in micro-sBTC
+
+;; Payment Counter
+(define-data-var payment-nonce uint u0)
