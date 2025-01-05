@@ -88,6 +88,18 @@
     )
 )
 
+(define-private (is-valid-withdrawal-address (address principal))
+    (and 
+        ;; Check that address is not the contract itself
+        (not (is-eq address (as-contract tx-sender)))
+        ;; Check that address is not the zero address
+        (not (is-eq address 'SP000000000000000000002Q6VF78))
+        ;; Check that address is not the same as merchant
+        (not (is-eq address tx-sender))
+    )
+)
+
+
 ;; Fee Calculations
 (define-private (calculate-fee (amount uint) (merchant principal))
     (let (
@@ -139,8 +151,8 @@
 (define-public (register-merchant (withdrawal-address principal))
     (begin
         (asserts! (not (is-merchant tx-sender)) ERR_NOT_AUTHORIZED)
-        ;; We don't need explicit principal validation since Clarity's type system
-        ;; ensures withdrawal-address is a valid principal at compile time
+        ;; Add validation for withdrawal address
+        (asserts! (is-valid-withdrawal-address withdrawal-address) ERR_INVALID_WITHDRAWAL_ADDRESS)
         (map-set merchants
             tx-sender
             {
