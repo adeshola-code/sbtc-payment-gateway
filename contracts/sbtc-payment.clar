@@ -195,3 +195,15 @@
         ))
     )
 )
+
+(define-public (process-pending-payment (payment-id uint))
+    (let (
+        (payment (unwrap! (map-get? payments payment-id) ERR_PAYMENT_NOT_FOUND))
+    )
+    (begin
+        (asserts! (is-eq (get status payment) "pending") ERR_INVALID_STATUS)
+        (asserts! (is-eq tx-sender (get customer payment)) ERR_NOT_AUTHORIZED)
+        (try! (stx-transfer? (get amount payment) tx-sender (get merchant payment)))
+        (process-payment payment-id payment)
+    ))
+)
