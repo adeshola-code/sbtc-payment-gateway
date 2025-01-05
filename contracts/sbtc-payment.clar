@@ -34,3 +34,36 @@
 
 ;; Payment Counter
 (define-data-var payment-nonce uint u0)
+
+;; ==============================================
+;; Data Maps
+;; ==============================================
+
+;; Merchant Registry
+(define-map merchants
+    principal
+    {
+        active: bool,
+        total-volume: uint,
+        payment-count: uint,
+        withdrawal-address: (optional principal),
+        fee-override: (optional uint)
+    }
+)
+
+;; Payment Records
+(define-map payments
+    uint
+    {
+        merchant: principal,
+        amount: uint,
+        customer: principal,
+        status: (string-ascii 20),
+        created-at: uint,
+        processed-at: (optional uint),
+        reference: (optional (string-ascii 64))
+    }
+)
+
+;; Merchant Balances
+(define-map merchant-balances principal uint)
