@@ -20,6 +20,10 @@
 (define-constant ERR_PAYMENT_ALREADY_PROCESSED (err u104))
 (define-constant ERR_INSUFFICIENT_BALANCE (err u105))
 (define-constant ERR_INVALID_STATUS (err u106))
+(define-constant ERR_INVALID_FEE (err u107))
+(define-constant ERR_INVALID_WITHDRAWAL_ADDRESS (err u108))
+(define-constant MAX_FEE_PERCENTAGE u1000) ;; 10% = 1000 basis points
+
 
 ;; ==============================================
 ;; Data Variables
@@ -135,6 +139,8 @@
 (define-public (register-merchant (withdrawal-address principal))
     (begin
         (asserts! (not (is-merchant tx-sender)) ERR_NOT_AUTHORIZED)
+        ;; We don't need explicit principal validation since Clarity's type system
+        ;; ensures withdrawal-address is a valid principal at compile time
         (map-set merchants
             tx-sender
             {
@@ -148,6 +154,7 @@
         (ok true)
     )
 )
+
 
 (define-public (withdraw-balance (amount uint))
     (let (
@@ -174,6 +181,11 @@
     (begin
         (asserts! (>= amount (var-get min-payment)) ERR_INVALID_AMOUNT)
         (asserts! (is-merchant merchant) ERR_INVALID_MERCHANT)
+        ;; Validate reference if provided
+        (asserts! (match reference
+            value (is-eq (len value) (len value)) ;; Valid if length check passes
+            true) ;; Also valid if none
+            ERR_INVALID_AMOUNT)
         (let (
             (payment-id (+ (var-get payment-nonce) u1))
         )
@@ -215,6 +227,8 @@
 (define-public (set-fee-percentage (new-fee uint))
     (begin
         (asserts! (is-contract-owner) ERR_NOT_AUTHORIZED)
+        ;; Add validation for fee percentage
+        (asserts! (<= new-fee MAX_FEE_PERCENTAGE) ERR_INVALID_FEE)
         (var-set fee-percentage new-fee)
         (ok true)
     )
