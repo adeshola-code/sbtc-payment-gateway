@@ -173,3 +173,52 @@ Clarinet.test({
         );
     },
 });
+
+Clarinet.test({
+    name: "Ensure error conditions are handled correctly",
+    async fn(chain: Chain, accounts: Map<string, Account>) {
+        const merchant = accounts.get("wallet_1")!;
+        const customer = accounts.get("wallet_2")!;
+        const nonMerchant = accounts.get("wallet_3")!;
+
+        // Try to create payment for non-existent merchant
+        let block = chain.mineBlock([
+            Tx.contractCall(
+                CONTRACT_NAME,
+                "create-payment",
+                [
+                    types.principal(nonMerchant.address),
+                    types.uint(2000000),
+                    types.none()
+                ],
+                customer.address
+            )
+        ]);
+
+        assertEquals(block.receipts[0].result, "(err u103)"); // ERR_INVALID_MERCHANT
+
+        // Try to process non-existent payment
+        block = chain.mineBlock([
+            Tx.contractCall(
+                CONTRACT_NAME,
+                "process-pending-payment",
+                [types.uint(999)],
+                customer.address
+            )
+        ]);
+
+        assertEquals(block.receipts[0].result, "(err u102)"); // ERR_PAYMENT_NOT_FOUND
+
+        // Try to set fee percentage as non-owner
+        block = chain.mineBlock([
+            Tx.contractCall(
+                CONTRACT_NAME,
+                "set-fee-percentage",
+                [types.uint(200)],
+                merchant.address
+            )
+        ]);
+
+        assertEquals(block.receipts[0].result, "(err u100)"); // ERR_NOT_AUTHORIZED
+    },
+});
