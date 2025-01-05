@@ -37,3 +37,67 @@ Clarinet.test({
         );
     },
 });
+
+Clarinet.test({
+    name: "Ensure payment creation and processing works",
+    async fn(chain: Chain, accounts: Map<string, Account>) {
+        const merchant = accounts.get("wallet_1")!;
+        const customer = accounts.get("wallet_2")!;
+        const withdrawalAddress = accounts.get("wallet_3")!;
+        const paymentAmount = 2000000; // 0.02 sBTC
+
+        // Register merchant first
+        let block = chain.mineBlock([
+            Tx.contractCall(
+                CONTRACT_NAME,
+                "register-merchant",
+                [types.principal(withdrawalAddress.address)],
+                merchant.address
+            )
+        ]);
+
+        // Create payment
+        block = chain.mineBlock([
+            Tx.contractCall(
+                CONTRACT_NAME,
+                "create-payment",
+                [
+                    types.principal(merchant.address),
+                    types.uint(paymentAmount),
+                    types.none()
+                ],
+                customer.address
+            )
+        ]);
+
+        assertEquals(block.receipts.length, 1);
+        assertEquals(block.receipts[0].result, "(ok u1)");
+
+        // Process payment
+        block = chain.mineBlock([
+            Tx.contractCall(
+                CONTRACT_NAME,
+                "process-pending-payment",
+                [types.uint(1)],
+                customer.address
+            )
+        ]);
+
+        assertEquals(block.receipts.length, 1);
+        assertEquals(block.receipts[0].result, "(ok true)");
+
+        // Verify payment status
+        const paymentInfo = chain.callReadOnlyFn(
+            CONTRACT_NAME,
+            "get-payment",
+            [types.uint(1)],
+            merchant.address
+        );
+
+        // Payment should be completed
+        assertEquals(
+            paymentInfo.result.includes('"completed"'),
+            true
+        );
+    },
+});
