@@ -87,7 +87,7 @@
 ;; Fee Calculations
 (define-private (calculate-fee (amount uint) (merchant principal))
     (let (
-        (merchant-data (unwrap! (map-get? merchants merchant) ERR_INVALID_MERCHANT))
+        (merchant-data (unwrap-panic (map-get? merchants merchant)))
         (fee-rate (default-to (var-get fee-percentage) (get fee-override merchant-data)))
     )
     (/ (* amount fee-rate) u10000))
