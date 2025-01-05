@@ -207,3 +207,61 @@
         (process-payment payment-id payment)
     ))
 )
+
+;; ==============================================
+;; Admin Functions
+;; ==============================================
+
+(define-public (set-fee-percentage (new-fee uint))
+    (begin
+        (asserts! (is-contract-owner) ERR_NOT_AUTHORIZED)
+        (var-set fee-percentage new-fee)
+        (ok true)
+    )
+)
+
+(define-public (set-merchant-fee-override (merchant principal) (fee (optional uint)))
+    (begin
+        (asserts! (is-contract-owner) ERR_NOT_AUTHORIZED)
+        (asserts! (is-merchant merchant) ERR_INVALID_MERCHANT)
+        (map-set merchants
+            merchant
+            (merge
+                (unwrap! (map-get? merchants merchant) ERR_INVALID_MERCHANT)
+                { fee-override: fee }
+            )
+        )
+        (ok true)
+    )
+)
+
+(define-public (toggle-merchant-status (merchant principal))
+    (begin
+        (asserts! (is-contract-owner) ERR_NOT_AUTHORIZED)
+        (asserts! (is-merchant merchant) ERR_INVALID_MERCHANT)
+        (map-set merchants
+            merchant
+            (merge
+                (unwrap! (map-get? merchants merchant) ERR_INVALID_MERCHANT)
+                { active: (not (get active (unwrap! (map-get? merchants merchant) ERR_INVALID_MERCHANT))) }
+            )
+        )
+        (ok true)
+    )
+)
+
+(define-public (pause-contract)
+    (begin
+        (asserts! (is-contract-owner) ERR_NOT_AUTHORIZED)
+        (var-set contract-paused true)
+        (ok true)
+    )
+)
+
+(define-public (unpause-contract)
+    (begin
+        (asserts! (is-contract-owner) ERR_NOT_AUTHORIZED)
+        (var-set contract-paused false)
+        (ok true)
+    )
+)
