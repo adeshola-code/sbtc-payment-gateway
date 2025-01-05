@@ -222,3 +222,79 @@ Clarinet.test({
         assertEquals(block.receipts[0].result, "(err u100)"); // ERR_NOT_AUTHORIZED
     },
 });
+
+Clarinet.test({
+    name: "Ensure merchant withdrawal works correctly",
+    async fn(chain: Chain, accounts: Map<string, Account>) {
+        const merchant = accounts.get("wallet_1")!;
+        const customer = accounts.get("wallet_2")!;
+        const withdrawalAddress = accounts.get("wallet_3")!;
+        const paymentAmount = 2000000; // 0.02 sBTC
+        const feePercentage = 100; // 1%
+        const fee = Math.floor((paymentAmount * feePercentage) / 10000);
+        const netAmount = paymentAmount - fee;
+
+        // Register merchant
+        let block = chain.mineBlock([
+            Tx.contractCall(
+                CONTRACT_NAME,
+                "register-merchant",
+                [types.principal(withdrawalAddress.address)],
+                merchant.address
+            )
+        ]);
+
+        // Create and process payment
+        block = chain.mineBlock([
+            Tx.contractCall(
+                CONTRACT_NAME,
+                "create-payment",
+                [
+                    types.principal(merchant.address),
+                    types.uint(paymentAmount),
+                    types.none()
+                ],
+                customer.address
+            ),
+            Tx.contractCall(
+                CONTRACT_NAME,
+                "process-pending-payment",
+                [types.uint(1)],
+                customer.address
+            )
+        ]);
+
+        // Get merchant balance
+        const balanceBeforeWithdrawal = chain.callReadOnlyFn(
+            CONTRACT_NAME,
+            "get-merchant-balance",
+            [types.principal(merchant.address)],
+            merchant.address
+        );
+
+        // Verify balance before withdrawal
+        assertEquals(balanceBeforeWithdrawal.result, `u${netAmount}`);
+
+        // Withdraw balance
+        block = chain.mineBlock([
+            Tx.contractCall(
+                CONTRACT_NAME,
+                "withdraw-balance",
+                [types.uint(netAmount)], // Withdraw the net amount after fees
+                merchant.address
+            )
+        ]);
+
+        assertEquals(block.receipts[0].result, "(ok true)");
+
+        // Verify balance after withdrawal
+        const balanceAfterWithdrawal = chain.callReadOnlyFn(
+            CONTRACT_NAME,
+            "get-merchant-balance",
+            [types.principal(merchant.address)],
+            merchant.address
+        );
+
+        assertEquals(balanceAfterWithdrawal.result, "u0");
+    }
+});
